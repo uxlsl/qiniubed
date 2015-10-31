@@ -106,7 +106,7 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
         if os.path.isfile(event.pathname):
             self._qiniu_client.upload_file(event.pathname)
             bubble_notify = pynotify.Notification(
-                "qiniuClund", "上传{}成功".format(event.pathname))
+                "qiniubed", "上传{}成功".format(event.pathname))
             bubble_notify.show()
 
     def process_IN_DELETE(self, event):
@@ -119,7 +119,7 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
         if stat is not None and stat['hash'] != qiniu.etag(event.pathname):
             self._qiniu_client.upload_file(event.pathname)
             bubble_notify = pynotify.Notification(
-                "qiniuClund", "上传{}成功".format(event.pathname))
+                "qiniubed", "上传{}成功".format(event.pathname))
             bubble_notify.show()
 
 
