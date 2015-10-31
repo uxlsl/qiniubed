@@ -17,7 +17,7 @@ import qiniu
 
 mime = MimeTypes()
 logger = logging.getLogger()
-CONFIG = os.path.expanduser('~/.qiniuClund.conf')
+CONFIG = os.path.expanduser('~/.qiniubed.conf')
 pynotify.init("Bubble@Linux")
 
 
