@@ -6,7 +6,7 @@ import os
 import shutil
 import requests
 import click
-import pickle
+import json
 import pyinotify
 import pynotify
 import pyperclip
@@ -63,6 +63,9 @@ class qiniuClient(object):
             with open(file_path, 'wb') as f:
                 r.raw.decode_content = True
                 shutil.copyfileobj(r.raw, f)
+            return True
+        else:
+            return False
 
     def stat(self, key):
         ret, _ = self._bucket.stat(self._bucket_name, key)
@@ -99,7 +102,7 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
 
     def process_IN_CREATE(self, event):
         # 上传相应文件
-        print("CREATE event:", event.pathname)
+        click.echo("CREATE event:", event.pathname)
         if os.path.isfile(event.pathname):
             self._qiniu_client.upload_file(event.pathname)
             bubble_notify = pynotify.Notification(
@@ -110,7 +113,7 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
         print('DELETE event:', event.pathname)
 
     def process_IN_MODIFY(self, event):
-        print('MODIFY event:', event.pathname)
+        click.echo('MODIFY event:', event.pathname)
         key = self._qiniu_client.cal_key(event.pathname)
         stat = self._qiniu_client.stat(key)
         if stat is not None and stat['hash'] != qiniu.etag(event.pathname):
@@ -122,12 +125,22 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
 
 def save_config(path, data):
     f = open(path, 'wb')
-    pickle.dump(data, f)
+    json.dump(data, f)
 
 
 def load_config(path):
     f = open(path, 'rb')
-    return pickle.load(f)
+    return json.load(f)
+
+
+class InputString(click.ParamType):
+    "将空白的去掉"
+    name = 'input-string'
+
+    def convert(self, value, param, ctx):
+        return str(value).replace(' ', '')
+
+INPUTSTRING = InputString()
 
 
 @click.group()
@@ -136,11 +149,16 @@ def cli():
 
 
 @cli.command()
-@click.option("--access_key", prompt="access_key", help="access_key")
-@click.option("--secret_key", prompt="secret_key", help="secret_key")
-@click.option("--bucket_name", prompt="bucket_name", help="bucket_name")
-@click.option("--domain", prompt="domain", help="domain")
-@click.option("--root", prompt="root", help="root dir")
+@click.option("--access_key", prompt="access_key", type=INPUTSTRING,
+              help="access_key")
+@click.option("--secret_key", prompt="secret_key", type=INPUTSTRING,
+              help="secret_key")
+@click.option("--bucket_name", prompt="bucket_name", type=INPUTSTRING,
+              help="bucket_name")
+@click.option("--domain", prompt="domain", type=INPUTSTRING,
+              help="domain")
+@click.option("--root", prompt="root", type=INPUTSTRING,
+              help="root dir")
 def config(access_key, secret_key, bucket_name, domain, root):
     root = os.path.realpath(root)
     data = {'access_key': access_key,
@@ -171,10 +189,13 @@ def sync(conf, demon):
         if (not os.path.exists(path)
             or os.path.exists(path) and qiniu.etag(path) != item['hash']
         ):
-            qc.down_file(item['key'], path)
+            if qc.down_file(item['key'], path):
+                msg = "下载{}成功".format(path)
+            else:
+                msg = "下载{}失败".format(path)
             bubble_notify = pynotify.Notification("qiniuClund",
-                                                  "下载{}成功".format(path)
-                                                  )
+                                                  msg
+                )
             bubble_notify.show()
 
     if demon:
