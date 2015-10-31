@@ -102,7 +102,7 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
 
     def process_IN_CREATE(self, event):
         # 上传相应文件
-        click.echo("CREATE event:", event.pathname)
+        click.echo("CREATE event:%s"%event.pathname)
         if os.path.isfile(event.pathname):
             self._qiniu_client.upload_file(event.pathname)
             bubble_notify = pynotify.Notification(
@@ -110,10 +110,10 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
             bubble_notify.show()
 
     def process_IN_DELETE(self, event):
-        print('DELETE event:', event.pathname)
+        click.echo('DELETE event:%s'%event.pathname)
 
     def process_IN_MODIFY(self, event):
-        click.echo('MODIFY event:', event.pathname)
+        click.echo('MODIFY event:%s'% event.pathname)
         key = self._qiniu_client.cal_key(event.pathname)
         stat = self._qiniu_client.stat(key)
         if stat is not None and stat['hash'] != qiniu.etag(event.pathname):
