@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(name='qiniubed',
       version='1.0',
-      description='Python Distribution Utilities',
+      description='qiniudbed to upload file',
       author='ux_lsl',
       author_email='ux_lsl@163.com',
       packages=['qiniubed'],
