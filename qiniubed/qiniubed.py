@@ -85,7 +85,8 @@ class qiniuClient(object):
         eof = False
         result = []
         while eof is False:
-            ret, eof, info = bucket.list(self._bucket_name, prefix=prefix, marker=marker, limit=limit)
+            ret, eof, info = bucket.list(
+                self._bucket_name, prefix=prefix, marker=marker, limit=limit)
             marker = ret.get('marker', None)
             result.extend(ret['items'])
         if eof is not True:
@@ -102,18 +103,20 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
 
     def process_IN_CREATE(self, event):
         # 上传相应文件
-        click.echo("CREATE event:%s"%event.pathname)
+        click.echo("CREATE event:%s" % event.pathname)
         if os.path.isfile(event.pathname):
             self._qiniu_client.upload_file(event.pathname)
             bubble_notify = pynotify.Notification(
                 "qiniubed", "上传{}成功".format(event.pathname))
             bubble_notify.show()
+            url = self._qiniu_client.get_chain(event.pathname)
+            pyperclip.copy(url)
 
     def process_IN_DELETE(self, event):
-        click.echo('DELETE event:%s'%event.pathname)
+        click.echo('DELETE event:%s' % event.pathname)
 
     def process_IN_MODIFY(self, event):
-        click.echo('MODIFY event:%s'% event.pathname)
+        click.echo('MODIFY event:%s' % event.pathname)
         key = self._qiniu_client.cal_key(event.pathname)
         stat = self._qiniu_client.stat(key)
         if stat is not None and stat['hash'] != qiniu.etag(event.pathname):
@@ -121,6 +124,8 @@ class qiniudEventHandler(pyinotify.ProcessEvent):
             bubble_notify = pynotify.Notification(
                 "qiniubed", "上传{}成功".format(event.pathname))
             bubble_notify.show()
+            url = self._qiniu_client.get_chain(event.pathname)
+            pyperclip.copy(url)
 
 
 def save_config(path, data):
@@ -187,27 +192,28 @@ def sync(conf, demon):
     for item in qc.list():
         path = os.path.join(data['root'], item['key'])
         if (not os.path.exists(path)
-            or os.path.exists(path) and qiniu.etag(path) != item['hash']
-        ):
+                or os.path.exists(path) and qiniu.etag(path) != item['hash']
+                ):
             if qc.down_file(item['key'], path):
                 msg = "下载{}成功".format(path)
             else:
                 msg = "下载{}失败".format(path)
             bubble_notify = pynotify.Notification("qiniuClund",
                                                   msg
-                )
+                                                  )
             bubble_notify.show()
 
     if demon:
         wm = pyinotify.WatchManager()
         event_flags = (pyinotify.IN_CREATE
-                       |pyinotify.IN_DELETE
-                       |pyinotify.IN_MODIFY)
+                       | pyinotify.IN_DELETE
+                       | pyinotify.IN_MODIFY)
         wm.add_watch(data['root'], event_flags, rec=True,
                      auto_add=True)
         eh = qiniudEventHandler(qc)
         notifier = pyinotify.Notifier(wm, eh)
         notifier.loop()
+
 
 @cli.command()
 @click.option("--path", prompt="path", help="get chain")
